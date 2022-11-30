@@ -1,1 +1,1 @@
-# Tp-Individuial-de-protoypos
+# Tp-Individuial-de-prototipos
