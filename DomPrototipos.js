@@ -25,21 +25,18 @@ function DomElement(type, childrenDefinition) {
     this.styles = {};
     this.children = [];
     this.eventos = {};
-    this.contens = '';
+   
     
 
     for (let index = 0; index < (childrenDefinition || []).length; index++) {
         var definition = childrenDefinition[index];
         var newElement = new DomElement(definition.type, definition.children);
         newElement.__proto__ = this;
-    //creo los strings para contens
-        if(newElement.type === 'h1'){
-            newElement.contens = 'Hola Mundo';
-        } 
-         if(newElement.type === 'p'){
-            newElement.contens = 'Gracias por visitar mi pagina';
+    //creo los contens
+        if ((definition.type === 'h1' || definition.type === 'p') && (definition.contens !== undefined)) {
+            newElement.contens = definition.contens;
         }
-        this.children.push(newElement);
+            this.children.push(newElement);
     }
 }
 
@@ -112,30 +109,39 @@ var definition = {
             children: [{
                 type: 'div',
                 children: [{
-                    type: 'h1'
+                    type: 'h1',
+                    contens: 'Hello World'
                 }, {
-                    type: 'p'
+                    type: 'p',
+                    contens: 'Gracias por visitar nuenstra pagina'
                 }, {
-                    type: 'p'
+                    type: 'p',
+                    contens: 'Esperamos que vuelva pronto'
                 }]
             }, {
                 type: 'section',
                 children: [{
-                    type: 'h1'
+                    type: 'h1',
+                    contens: ''
                 }, {
-                    type: 'p'
+                    type: 'p',
+                    contens: ''
                 }, {
-                    type: 'p'
+                    type: 'p',
+                    contens: 'Gracias por visitar esta seccion'
                 }]
             }]
         }, {
             type: 'aside',
             children: [{
-                type: 'h1'
+                type: 'h1',
+                contens: 'Hello World esta en el sector aside'
             }, {
-                type: 'p'
+                type: 'p',
+                contens: 'Gracias por visitar aside'
             }, {
-                type: 'p'
+                type: 'p',
+                contens: ''
             }]
         }]
     }]
@@ -170,6 +176,11 @@ dom.children[1].children[1].children[0].styles = {
     background: 'blue',
     color: 'yellow',
     size: 20
+};
+
+dom.children[1].children[0].children[0].children[0].styles = {
+    size: 17,
+    color: 'red'
 };
 
 console.log(' ')
@@ -240,20 +251,19 @@ una definición de estilos que representa un css, asigna los estilos
 de esa definición a los correspondientes nodos del DOM.
 */
 
-function addStyles(dom, styles) {
-    for (let index = 0; index < dom.children.length; index++) {
-      var element = dom.children[index];
-      element.styles = { ...element.styles, ...dom.styles };
-      if (styles[element.type]) {
-        element.styles = { ...element.styles, ...styles[element.type] };
-      }
-      if (styles[dom.type + " " + element.type]) {
-        dom.styles = { ...element.styles, ...styles[element.type] };
-      }
-      addStyles(element, styles);
+DomElement.prototype.addStyles = function (styles) {
+    for (let index = 0; index < this.children.length; index++) {
+      var element = this.children[index];
+      element.styles = { ...element.styles, ...this.styles };
+        if ( styles[element.type] || styles[this.type + ' ' + element.type]) {
+            element.styles = { ...element.styles, ...styles[element.type]};  
+        }
+        element.addStyles(styles);
     }
-}
-addStyles(dom, styles);
+};
+dom.addStyles(styles);
+
+
 
 /*
 b) Luego implemente para todo nodo el método getFullStyle que
@@ -262,14 +272,17 @@ propios y los heredados).
 */
 
 DomElement.prototype.getFullStyle = function (typeElement) {
-    this.children.forEach(function (child) {
+    this.children.forEach(function (child)  {
       if (child.type === typeElement) {
-        console.log(child.type, child.styles);
+        console.log("Estilos del padre " + child.__proto__.type + " { " + Object.values(child.__proto__.styles) + " } "        
+        + " Estos son los estilos del hijo " + child.type, child.styles);
       }
       child.getFullStyle(typeElement);
     });
   };
-console.log(dom.getFullStyle('div'));
+dom.getFullStyle('div');
+
+
 
 /* 
 c) Implemente para todo nodo el método viewStyleHierarchy, que
@@ -278,15 +291,14 @@ absolutamente todos los estilos, incluyendo los heredados, y
 no solo aquellos que tienen asociados.
 */
 
-  function viewStyleHierarchy(dom) {
-    for (let index = 0; index < dom.children.length; index++) {
-      console.log(dom.children[index].type, dom.children[index].styles);
-      var element = dom.children[index];
-      viewStyleHierarchy(element);
+ function viewStyleHierarchy (dom) {
+        for (let index = 0; index < dom.children.length; index++) {
+            console.log( dom.children[index].type, dom.children[index].styles);
+            var element = dom.children[index];
+            viewStyleHierarchy(element)
+        }
     }
-  }
-  
-  viewStyleHierarchy(dom);
+viewStyleHierarchy(dom);
 
 /**************** PUNTO 2 ******************************/
 
@@ -344,20 +356,25 @@ Se pide entonces que realice los cambios pertinentes para que los elementos
 del dom puedan tener este comportamiento.
 */
 DomElement.prototype.handle = function (evento) {
-    
+    //aca this sigue siendo el nodo del dom
     if (this.eventos[evento]) {
-
+        
         this.eventos[evento].call(this);
     }
-    if(this. __proto__ && this.__proto__.type !== 'html'){
+    
+    if(this. __proto__ && this.__proto__.type !== 'html' && this.__proto__.handle(evento)){
         this.__proto__.handle(evento);
+    } 
+    else{
+        
+        console.log("Se realizo un bubbling up " + this.__proto__.type )
     }
-  };
-  
-  DomElement.prototype.on = function(evento, handle) {
-      var activado = true;    
-      this.eventos = {...this.eventos, [evento]: handle, activado};
-      
+};
+
+DomElement.prototype.on = function(evento, handle) {
+    
+    this.eventos = {...this.eventos, [evento]: handle}; 
+    console.log("on"); 
 };
 // Pruebas
 
@@ -377,11 +394,12 @@ DomElement.prototype.handle = function (evento) {
 DomElement.prototype.off = function(evento){
     if(this.eventos[evento])
     {
-        activado = false;
-        delete this.eventos[evento];
-        
-    }    
+      delete this.eventos[evento];
+    }
+    console.log("off");
 }
+
+
 //Pruebas
 dom.children[1].children[0].children[0].off('onclick');
 
@@ -440,15 +458,16 @@ DomElement.prototype.display = function() {
         black : "\x1b[30m",
      }
     for (let i = 0; i < this.children.length; i++) {
-        if(this.children[i].type === 'h1' || this.children[i].type === 'p'){
-            if(this.children[i].type === 'h1'){
-                console.log(colors[this.children[i].styles.color] + this.children[i].contens.toUpperCase());
+        if( ( this.children[i].type === 'p' || this.children[i].type === 'h1') && (this.children[i].styles.color !== undefined ))  {
+           if ((this.children[i].type === 'h1') && (this.children[i].contens !== undefined) ) {
+                console.log(colors[this.children[i].styles.color] +  this.children[i].contens.toUpperCase());
             }
-            else{
-                console.log(colors[this.children[i].styles.color] + this.children[i].contens);
-            }
+            if((this.children[i].type === 'p') && (this.children[i].contens !== undefined)) {
+                console.log(colors[this.children[i].styles.color] +  this.children[i].contens);
+            }    
         }
-        this.children[i].display();   
+
+        this.children[i].display();
     }
 };
-dom.display();    
+dom.display();
